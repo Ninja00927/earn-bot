@@ -1,7 +1,8 @@
 """Earn bot — users send text, an admin approves it, and the user's balance grows.
 
 Flow:
-- User taps "📝 Yuborish", writes a text → every admin gets it with ✅ / ❌ buttons.
+- User taps "📝 Yuborish", sends a text or a file (photo, document, video, audio, voice…)
+  → every admin gets it with ✅ / ❌ buttons.
 - ✅ credits REWARD_AMOUNT (or a custom amount: reply to the message with a number,
   or /approve <id> <amount>). ❌ rejects it.
 - User taps "💸 Pul yechish", picks 💳 Karta or 🪙 USDT (BEP20), enters the amount and the
@@ -84,6 +85,17 @@ METHODS = {"card": "💳 Karta", "bep20": "🪙 USDT (BEP20)"}
 WD_STATUS = {"pending": "⏳ Kutilmoqda", "paid": "✅ To'landi", "rejected": "❌ Rad etildi"}
 SUB_STATUS = {"pending": "⏳ Kutilmoqda", "approved": "✅ Tasdiqlandi", "rejected": "❌ Rad etildi"}
 
+# Telegram message attribute -> label shown to admins. Each name also matches Bot.send_<name>.
+FILE_TYPES = {
+    "photo": "🖼 Rasm",
+    "document": "📄 Fayl",
+    "video": "🎬 Video",
+    "audio": "🎵 Audio",
+    "voice": "🎤 Ovozli xabar",
+    "animation": "🎞 GIF",
+    "video_note": "⏺ Video xabar",
+}
+
 BEP20_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
@@ -141,9 +153,12 @@ def sub_admin_text(sub) -> str:
     text = (
         f"📝 <b>Yangi yuborma #{sub['id']}</b>\n"
         f"👤 {user_label(sub['user_id'])}\n"
-        f"🕒 {fmt_dt(sub['created_at'])}\n\n"
-        f"{html.escape(sub['text'])}"
+        f"🕒 {fmt_dt(sub['created_at'])}"
     )
+    if sub["file_type"]:
+        text += f"\n📎 {FILE_TYPES.get(sub['file_type'], sub['file_type'])} (yuqoridagi xabarda)"
+    if sub["text"]:
+        text += f"\n\n{html.escape(sub['text'])}"
     if sub["status"] == "pending":
         text += ("\n\n<i>Boshqa summa bilan tasdiqlash uchun shu xabarga javob qilib summani yozing "
                  f"yoki /approve {sub['id']} SUMMA</i>")
@@ -174,6 +189,26 @@ async def broadcast_to_admins(context: ContextTypes.DEFAULT_TYPE, kind: str, ite
             msg = await context.bot.send_message(admin_id, text, parse_mode=ParseMode.HTML,
                                                  reply_markup=markup, disable_web_page_preview=True)
             db.add_admin_msg(kind, item_id, admin_id, msg.message_id)
+        except TelegramError as e:
+            log.warning("Could not notify admin %s: %s", admin_id, e)
+
+
+async def send_sub_to_admin(bot, chat_id: int, sub):
+    """Sends the attached file (if any), then the card with buttons as a reply to it."""
+    reply_to = None
+    if sub["file_id"]:
+        file_msg = await getattr(bot, f"send_{sub['file_type']}")(chat_id, sub["file_id"])
+        reply_to = file_msg.message_id
+    return await bot.send_message(chat_id, sub_admin_text(sub), parse_mode=ParseMode.HTML,
+                                  reply_markup=sub_keyboard(sub["id"]), disable_web_page_preview=True,
+                                  reply_to_message_id=reply_to)
+
+
+async def notify_admins_of_sub(context: ContextTypes.DEFAULT_TYPE, sub) -> None:
+    for admin_id in ADMIN_IDS:
+        try:
+            msg = await send_sub_to_admin(context.bot, admin_id, sub)
+            db.add_admin_msg("sub", sub["id"], admin_id, msg.message_id)
         except TelegramError as e:
             log.warning("Could not notify admin %s: %s", admin_id, e)
 
@@ -254,7 +289,11 @@ async def balance_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def start_submit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reset(context)
     context.user_data["state"] = "submit"
-    await update.message.reply_text("📝 Matningizni yozib yuboring:", reply_markup=cancel_menu())
+    await update.message.reply_text(
+        "📝 Matn yoki fayl (rasm, hujjat, video, audio, ovozli xabar) yuboring. "
+        "Faylga izoh ham yozishingiz mumkin.",
+        reply_markup=cancel_menu(),
+    )
 
 
 async def start_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -358,18 +397,18 @@ async def handle_wd_details(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     await broadcast_to_admins(context, "wd", wd_id, wd_admin_text(wd), wd_keyboard(wd_id))
 
 
-async def handle_submission(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> None:
+async def handle_submission(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str,
+                            file_id: str | None = None, file_type: str | None = None) -> None:
     if len(text) > MAX_TEXT:
         await update.message.reply_text(f"❗️ Matn juda uzun (maksimum {MAX_TEXT} belgi).")
         return
     reset(context)
-    sub_id = db.create_submission(update.effective_user.id, text)
+    sub_id = db.create_submission(update.effective_user.id, text, file_id, file_type)
     await update.message.reply_text(
         f"✅ Yuborma #{sub_id} adminga yuborildi. Tasdiqlansa balansingizga pul tushadi.",
         reply_markup=main_menu(),
     )
-    sub = db.get_submission(sub_id)
-    await broadcast_to_admins(context, "sub", sub_id, sub_admin_text(sub), sub_keyboard(sub_id))
+    await notify_admins_of_sub(context, db.get_submission(sub_id))
 
 
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -418,7 +457,21 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def on_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("❗️ Faqat matn qabul qilinadi.", reply_markup=main_menu())
+    """Non-text messages: accepted as a submission when the user is in submit mode."""
+    touch(update)
+    msg = update.message
+    if db.get_user(update.effective_user.id)["blocked"]:
+        await msg.reply_text("🚫 Siz bloklangansiz.")
+        return
+    if context.user_data.get("state") != "submit":
+        await msg.reply_text(f"Fayl yuborish uchun avval «{BTN_SUBMIT}» tugmasini bosing.", reply_markup=main_menu())
+        return
+    for file_type in FILE_TYPES:
+        media = getattr(msg, file_type, None)
+        if media:
+            file_id = media[-1].file_id if file_type == "photo" else media.file_id
+            return await handle_submission(update, context, (msg.caption or "").strip(), file_id, file_type)
+    await msg.reply_text("❗️ Bu turdagi xabar qabul qilinmaydi. Matn yoki fayl yuboring.")
 
 
 # ---------------------------------------------------------------- admin side
@@ -537,8 +590,7 @@ async def pending_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("Hech narsa kutilmayapti ✅")
         return
     for sub in subs:
-        msg = await update.message.reply_text(sub_admin_text(sub), parse_mode=ParseMode.HTML,
-                                              reply_markup=sub_keyboard(sub["id"]), disable_web_page_preview=True)
+        msg = await send_sub_to_admin(context.bot, update.effective_chat.id, sub)
         db.add_admin_msg("sub", sub["id"], msg.chat_id, msg.message_id)
     for wd in wds:
         msg = await update.message.reply_text(wd_admin_text(wd), parse_mode=ParseMode.HTML,

@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    text TEXT NOT NULL,
+    text TEXT NOT NULL,                      -- the text, or the file's caption ('' if none)
+    file_id TEXT,                            -- Telegram file id of an attached file, if any
+    file_type TEXT,                          -- photo / document / video / audio / voice / animation / video_note
     status TEXT NOT NULL DEFAULT 'pending',  -- pending / approved / rejected
     amount INTEGER NOT NULL DEFAULT 0,       -- cents credited on approval
     created_at INTEGER NOT NULL,
@@ -57,6 +59,11 @@ class DB:
         self.conn = sqlite3.connect(path, isolation_level=None)  # explicit transactions below
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        # Databases created before file uploads existed lack these columns.
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(submissions)")}
+        for col in ("file_id", "file_type"):
+            if col not in cols:
+                self.conn.execute(f"ALTER TABLE submissions ADD COLUMN {col} TEXT")
 
     # ---------- users ----------
     def touch_user(self, user_id: int, username: str | None, full_name: str) -> None:
@@ -88,10 +95,11 @@ class DB:
             return row["balance"] + delta
 
     # ---------- submissions ----------
-    def create_submission(self, user_id: int, text: str) -> int:
+    def create_submission(self, user_id: int, text: str, file_id: str | None = None,
+                          file_type: str | None = None) -> int:
         cur = self.conn.execute(
-            "INSERT INTO submissions (user_id, text, created_at) VALUES (?, ?, ?)",
-            (user_id, text, int(time.time())),
+            "INSERT INTO submissions (user_id, text, file_id, file_type, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, text, file_id, file_type, int(time.time())),
         )
         return cur.lastrowid
 

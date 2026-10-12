@@ -7,7 +7,7 @@ foydalanuvchi pulni **kartaga** yoki **USDT (BEP20)** orqali yechish so'rovini y
 
 | Tugma | Nima qiladi |
 |---|---|
-| 📝 Yuborish | Matn yozadi, u adminga boradi |
+| 📝 Yuborish | Matn yoki fayl (rasm, hujjat, video, audio, ovozli xabar) yuboradi, u adminga boradi |
 | 💰 Balans | Balans va jami ishlagan pul |
 | 💸 Pul yechish | 💳 Karta yoki 🪙 USDT (BEP20) → summa → karta raqami / `0x...` manzil |
 | ❓ Yordam | Qisqa yo'riqnoma |
@@ -17,7 +17,7 @@ Karta raqami 16 ta raqam, BEP20 manzil `0x` + 40 ta belgi bo'lishi tekshiriladi.
 
 ## Admin uchun
 
-Har bir yuborma adminga shunday keladi: kim yubordi (ism, @username, ID), matn va tugmalar:
+Har bir yuborma adminga shunday keladi: avval fayl (agar bo'lsa), keyin unga javob sifatida kim yubordi (ism, @username, ID), matn/izoh va tugmalar:
 
 - **✅ Tasdiqlash** — balansga `REWARD_AMOUNT` qo'shiladi.
 - **Boshqa summa** — yuborma xabariga *javob (reply)* qilib summani yozing (masalan `5000`)
