@@ -19,7 +19,7 @@ Karta raqami 16 ta raqam, BEP20 manzil `0x` + 40 ta belgi bo'lishi tekshiriladi.
 
 Har bir yuborma adminga shunday keladi: avval fayl (agar bo'lsa), keyin unga javob sifatida kim yubordi (ism, @username, ID), matn/izoh va tugmalar:
 
-- **✅ Tasdiqlash** — balansga `REWARD_AMOUNT` qo'shiladi.
+- **✅ Tasdiqlash** — balansga `REWARD_KIRO` qo'shiladi.
 - **Boshqa summa** — yuborma xabariga *javob (reply)* qilib summani yozing (masalan `2`)
   yoki `/approve 12 2`.
 - **❌ Rad etish**.
@@ -33,13 +33,14 @@ Buyruqlar: `/admin`, `/stats`, `/pending`, `/approve ID SUMMA`, `/user USER_ID`,
 
 ## Sozlamalar
 
+Hamma narsa **kiro** da hisoblanadi.
+
 | O'zgaruvchi | Ma'nosi | Default |
 |---|---|---|
 | `BOT_TOKEN` | @BotFather dan **yangi** bot tokeni | — |
 | `ADMIN_IDS` | Adminlar ID si, vergul bilan | — |
-| `REWARD_AMOUNT` | Har bir tasdiqlangan yuborma uchun summa | `1` |
-| `MIN_WITHDRAW` | Minimal yechish summasi | `10` |
-| `CURRENCY` | Valyuta nomi (`kiro`, `so'm`, `USDT`) | `kiro` |
+| `REWARD_KIRO` | Har bir tasdiqlangan yuborma uchun necha kiro | `1` |
+| `MIN_WITHDRAW_KIRO` | Minimal yechish (kiro) | `10` |
 | `DB_PATH` | Baza fayli | `earn.db` (Docker'da `/data/earn.db`) |
 
 ## Ishga tushirish
@@ -55,7 +56,7 @@ python bot.py
 
 1. Railway loyihasida **+ New → GitHub Repo** → shu repo (student union botidan alohida yangi servis).
 2. Servis **Settings → Root Directory** = `earn_bot` (shunda `earn_bot/railway.json` va `Dockerfile` ishlatiladi).
-3. **Variables**: `BOT_TOKEN`, `ADMIN_IDS`, `REWARD_AMOUNT`, `MIN_WITHDRAW`, `CURRENCY`.
+3. **Variables**: `BOT_TOKEN`, `ADMIN_IDS`, `REWARD_KIRO`, `MIN_WITHDRAW_KIRO`.
 4. **Volume** qo'shing, mount path `/data` — aks holda redeploy'da balanslar o'chib ketadi.
 5. Logda `Earn bot is running` chiqsa — botga `/start` yuboring.
 

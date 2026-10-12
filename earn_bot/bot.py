@@ -3,7 +3,7 @@
 Flow:
 - User taps "📝 Yuborish", sends a text or a file (photo, document, video, audio, voice…)
   → every admin gets it with ✅ / ❌ buttons.
-- ✅ credits REWARD_AMOUNT (or a custom amount: reply to the message with a number,
+- ✅ credits REWARD_KIRO (or a custom amount: reply to the message with a number,
   or /approve <id> <amount>). ❌ rejects it.
 - User taps "💸 Pul yechish", picks 💳 Karta or 🪙 USDT (BEP20), enters the amount and the
   card number / BEP20 address. The amount is reserved from the balance immediately.
@@ -62,9 +62,11 @@ def _to_cents(value: str) -> int | None:
 BOT_TOKEN = _env("BOT_TOKEN")
 ADMIN_IDS = {int(x) for x in _env("ADMIN_IDS").replace(" ", "").split(",") if x.isdigit()}
 DB_PATH = _env("DB_PATH", "earn.db")
-CURRENCY = _env("CURRENCY", "kiro")
-REWARD = _to_cents(_env("REWARD_AMOUNT", "1")) or 0
-MIN_WITHDRAW = _to_cents(_env("MIN_WITHDRAW", "10")) or 0
+# Everything is counted in kiro. The settings are named *_KIRO so that old REWARD_AMOUNT /
+# MIN_WITHDRAW / CURRENCY lines left in a .env from the so'm days are ignored.
+CURRENCY = "kiro"
+REWARD = _to_cents(_env("REWARD_KIRO", "1")) or 0
+MIN_WITHDRAW = _to_cents(_env("MIN_WITHDRAW_KIRO", "10")) or 0
 
 MAX_TEXT = 3500
 
