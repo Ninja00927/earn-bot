@@ -62,9 +62,9 @@ def _to_cents(value: str) -> int | None:
 BOT_TOKEN = _env("BOT_TOKEN")
 ADMIN_IDS = {int(x) for x in _env("ADMIN_IDS").replace(" ", "").split(",") if x.isdigit()}
 DB_PATH = _env("DB_PATH", "earn.db")
-CURRENCY = _env("CURRENCY", "so'm")
-REWARD = _to_cents(_env("REWARD_AMOUNT", "1000")) or 0
-MIN_WITHDRAW = _to_cents(_env("MIN_WITHDRAW", "10000")) or 0
+CURRENCY = _env("CURRENCY", "kiro")
+REWARD = _to_cents(_env("REWARD_AMOUNT", "1")) or 0
+MIN_WITHDRAW = _to_cents(_env("MIN_WITHDRAW", "10")) or 0
 
 MAX_TEXT = 3500
 
@@ -342,7 +342,7 @@ async def handle_wd_amount(update: Update, context: ContextTypes.DEFAULT_TYPE, t
     u = db.get_user(update.effective_user.id)
     amount = u["balance"] if text.lower() in ("hammasi", "all", "barchasi") else _to_cents(text)
     if amount is None:
-        await update.message.reply_text("❗️ Faqat raqam yozing, masalan: 50000")
+        await update.message.reply_text("❗️ Faqat raqam yozing, masalan: 20")
         return
     if amount < MIN_WITHDRAW:
         await update.message.reply_text(f"❗️ Minimal summa: {money(MIN_WITHDRAW)}")
@@ -422,7 +422,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if link and link["kind"] == "sub":
             amount = _to_cents(text)
             if amount is None:
-                await msg.reply_text("❗️ Summani raqam bilan yozing, masalan: 5000")
+                await msg.reply_text("❗️ Summani raqam bilan yozing, masalan: 2")
                 return
             await approve(update, context, link["item_id"], amount)
             return
@@ -560,7 +560,7 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/pending — kutilayotgan yuborma va so'rovlar\n"
         "/approve ID SUMMA — yuborimani boshqa summa bilan tasdiqlash\n"
         "/user USER_ID — foydalanuvchi balansi\n"
-        "/addbalance USER_ID SUMMA — balansga qo'shish (ayirish uchun minus: -5000)\n"
+        "/addbalance USER_ID SUMMA — balansga qo'shish (ayirish uchun minus: -5)\n"
         "/block USER_ID, /unblock USER_ID\n"
         "/broadcast MATN — hammaga xabar\n\n"
         "Yuborma xabariga javob qilib summani yozsangiz — shu summa bilan tasdiqlanadi.",

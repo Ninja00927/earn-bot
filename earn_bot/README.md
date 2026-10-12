@@ -20,8 +20,8 @@ Karta raqami 16 ta raqam, BEP20 manzil `0x` + 40 ta belgi bo'lishi tekshiriladi.
 Har bir yuborma adminga shunday keladi: avval fayl (agar bo'lsa), keyin unga javob sifatida kim yubordi (ism, @username, ID), matn/izoh va tugmalar:
 
 - **✅ Tasdiqlash** — balansga `REWARD_AMOUNT` qo'shiladi.
-- **Boshqa summa** — yuborma xabariga *javob (reply)* qilib summani yozing (masalan `5000`)
-  yoki `/approve 12 5000`.
+- **Boshqa summa** — yuborma xabariga *javob (reply)* qilib summani yozing (masalan `2`)
+  yoki `/approve 12 2`.
 - **❌ Rad etish**.
 
 Pul yechish so'rovi kelganda summa foydalanuvchi balansidan darhol band qilinadi. Pulni o'zingiz
@@ -29,7 +29,7 @@ o'tkazasiz va **✅ To'landi** ni bosasiz. **❌ Rad etish** bosilsa pul balansg
 Tugmani ikki marta bosish yoki ikki admin bir vaqtda bosishi ikki marta pul qo'shmaydi.
 
 Buyruqlar: `/admin`, `/stats`, `/pending`, `/approve ID SUMMA`, `/user USER_ID`,
-`/addbalance USER_ID SUMMA` (ayirish: `-5000`), `/block USER_ID`, `/unblock USER_ID`, `/broadcast MATN`.
+`/addbalance USER_ID SUMMA` (ayirish: `-5`), `/block USER_ID`, `/unblock USER_ID`, `/broadcast MATN`.
 
 ## Sozlamalar
 
@@ -37,9 +37,9 @@ Buyruqlar: `/admin`, `/stats`, `/pending`, `/approve ID SUMMA`, `/user USER_ID`,
 |---|---|---|
 | `BOT_TOKEN` | @BotFather dan **yangi** bot tokeni | — |
 | `ADMIN_IDS` | Adminlar ID si, vergul bilan | — |
-| `REWARD_AMOUNT` | Har bir tasdiqlangan matn uchun summa | `1000` |
-| `MIN_WITHDRAW` | Minimal yechish summasi | `10000` |
-| `CURRENCY` | Valyuta nomi (`so'm`, `USDT`, `$`) | `so'm` |
+| `REWARD_AMOUNT` | Har bir tasdiqlangan yuborma uchun summa | `1` |
+| `MIN_WITHDRAW` | Minimal yechish summasi | `10` |
+| `CURRENCY` | Valyuta nomi (`kiro`, `so'm`, `USDT`) | `kiro` |
 | `DB_PATH` | Baza fayli | `earn.db` (Docker'da `/data/earn.db`) |
 
 ## Ishga tushirish
