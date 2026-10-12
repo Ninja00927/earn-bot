@@ -102,3 +102,8 @@ docker run -d --restart unless-stopped --env-file .env -v muss-data:/data muss-b
   forgetme - Delete the link to your past messages
   cancel - Cancel what you're writing
   ```
+
+## Earn bot
+
+The `earn_bot/` folder holds a separate bot: users send text, an admin approves it, their balance grows,
+and they can withdraw to a card or USDT (BEP20). See [`earn_bot/README.md`](earn_bot/README.md).
