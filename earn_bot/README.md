@@ -10,6 +10,7 @@ foydalanuvchi pulni **kartaga** yoki **USDT (BEP20)** orqali yechish so'rovini y
 | 📝 Yuborish | Matn yoki fayl (rasm, hujjat, video, audio, ovozli xabar) yuboradi, u adminga boradi |
 | 💰 Balans | Balans va jami ishlagan pul |
 | 💸 Pul yechish | 💳 Karta yoki 🪙 USDT (BEP20) → summa → karta raqami / `0x...` manzil |
+| 🔗 Link olish | Admin qo'shgan linklardan bittasini oladi. Har bir link faqat bir kishiga beriladi |
 | ❓ Yordam | Qisqa yo'riqnoma |
 
 Matn tasdiqlansa yoki rad etilsa, pul yechish so'rovi to'lansa yoki rad etilsa — foydalanuvchiga xabar keladi.
@@ -27,6 +28,10 @@ Har bir yuborma adminga shunday keladi: avval fayl (agar bo'lsa), keyin unga jav
 Pul yechish so'rovi kelganda summa foydalanuvchi balansidan darhol band qilinadi. Pulni o'zingiz
 o'tkazasiz va **✅ To'landi** ni bosasiz. **❌ Rad etish** bosilsa pul balansga qaytadi.
 Tugmani ikki marta bosish yoki ikki admin bir vaqtda bosishi ikki marta pul qo'shmaydi.
+
+**Linklar:** botga linklarni oddiy xabar qilib yuboring (bir xabarda bir nechta ham bo'ladi) — ular
+bazaga saqlanadi. Bir xil link ikki marta saqlanmaydi va ikki kishiga berilmaydi. Linklar tugaganda
+adminlarga xabar keladi. `/links` — nechta qoldi, `/clearlinks` — ishlatilmaganlarini o'chirish.
 
 Buyruqlar: `/admin`, `/stats`, `/pending`, `/approve ID SUMMA`, `/user USER_ID`,
 `/addbalance USER_ID SUMMA` (ayirish: `-5`), `/block USER_ID`, `/unblock USER_ID`, `/broadcast MATN`.

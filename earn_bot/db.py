@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS withdrawals (
     decided_at INTEGER,
     decided_by INTEGER
 );
+CREATE TABLE IF NOT EXISTS links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL UNIQUE,                -- the same link is never stored twice
+    added_by INTEGER NOT NULL,
+    added_at INTEGER NOT NULL,
+    given_to INTEGER,                        -- NULL until a user receives it; each link goes to one user only
+    given_at INTEGER
+);
 CREATE TABLE IF NOT EXISTS admin_msgs (
     kind TEXT NOT NULL,                      -- 'sub' or 'wd'
     item_id INTEGER NOT NULL,
@@ -189,6 +197,42 @@ class DB:
         return self.conn.execute(
             "SELECT 1 FROM withdrawals WHERE user_id=? AND status='pending'", (user_id,)
         ).fetchone() is not None
+
+    # ---------- links handed out by the "🔗 Link olish" button ----------
+    def add_links(self, urls: list[str], admin_id: int) -> int:
+        """Stores new links, skipping ones already in the database. Returns how many were added."""
+        now = int(time.time())
+        with self.conn:
+            self.conn.execute("BEGIN IMMEDIATE")
+            added = 0
+            for url in urls:
+                cur = self.conn.execute(
+                    "INSERT OR IGNORE INTO links (url, added_by, added_at) VALUES (?, ?, ?)", (url, admin_id, now)
+                )
+                added += cur.rowcount
+            return added
+
+    def take_link(self, user_id: int) -> str | None:
+        """Hands the oldest unused link to this user and marks it used. None when none are left."""
+        with self.conn:
+            self.conn.execute("BEGIN IMMEDIATE")
+            row = self.conn.execute("SELECT id, url FROM links WHERE given_to IS NULL ORDER BY id LIMIT 1").fetchone()
+            if not row:
+                return None
+            self.conn.execute(
+                "UPDATE links SET given_to=?, given_at=? WHERE id=?", (user_id, int(time.time()), row["id"])
+            )
+            return row["url"]
+
+    def link_counts(self) -> tuple[int, int]:
+        """(available, given)"""
+        row = self.conn.execute(
+            "SELECT SUM(given_to IS NULL), SUM(given_to IS NOT NULL) FROM links"
+        ).fetchone()
+        return row[0] or 0, row[1] or 0
+
+    def clear_unused_links(self) -> int:
+        return self.conn.execute("DELETE FROM links WHERE given_to IS NULL").rowcount
 
     # ---------- admin message links (so reply-to-message works) ----------
     def add_admin_msg(self, kind: str, item_id: int, chat_id: int, message_id: int) -> None:

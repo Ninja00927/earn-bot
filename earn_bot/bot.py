@@ -25,7 +25,7 @@ from telegram import (
     ReplyKeyboardMarkup,
     Update,
 )
-from telegram.constants import ParseMode
+from telegram.constants import MessageEntityType, ParseMode
 from telegram.error import TelegramError
 from telegram.ext import (
     Application,
@@ -81,6 +81,7 @@ BTN_SUBMIT = "📝 Yuborish"
 BTN_BALANCE = "💰 Balans"
 BTN_WITHDRAW = "💸 Pul yechish"
 BTN_HELP = "❓ Yordam"
+BTN_LINK = "🔗 Link olish"
 BTN_CANCEL = "❌ Bekor qilish"
 
 METHODS = {"card": "💳 Karta", "bep20": "🪙 USDT (BEP20)"}
@@ -121,7 +122,8 @@ def is_admin(update: Update) -> bool:
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[KeyboardButton(BTN_SUBMIT), KeyboardButton(BTN_BALANCE)],
-         [KeyboardButton(BTN_WITHDRAW), KeyboardButton(BTN_HELP)]],
+         [KeyboardButton(BTN_WITHDRAW), KeyboardButton(BTN_LINK)],
+         [KeyboardButton(BTN_HELP)]],
         resize_keyboard=True,
     )
 
@@ -251,7 +253,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"<b>{BTN_SUBMIT}</b> — matn yuboring. Admin tasdiqlasa balansingizga "
         f"<b>{money(REWARD)}</b> qo'shiladi.\n"
         f"<b>{BTN_BALANCE}</b> — hisobingizni ko'rish.\n"
-        f"<b>{BTN_WITHDRAW}</b> — kartaga yoki USDT (BEP20) orqali chiqarish.",
+        f"<b>{BTN_WITHDRAW}</b> — kartaga yoki USDT (BEP20) orqali chiqarish.\n"
+        f"<b>{BTN_LINK}</b> — maxsus link olish.",
         parse_mode=ParseMode.HTML,
         reply_markup=main_menu(),
     )
@@ -413,6 +416,38 @@ async def handle_submission(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     await notify_admins_of_sub(context, db.get_submission(sub_id))
 
 
+def extract_links(message) -> list[str]:
+    """Every link in a message: plain URLs and links hidden behind text, in order, without duplicates."""
+    urls = []
+    for entity, text in message.parse_entities([MessageEntityType.URL, MessageEntityType.TEXT_LINK]).items():
+        url = entity.url if entity.type == MessageEntityType.TEXT_LINK else text
+        if url not in urls:
+            urls.append(url)
+    return urls
+
+
+async def save_links(update: Update, context: ContextTypes.DEFAULT_TYPE, urls: list[str]) -> None:
+    added = db.add_links(urls, update.effective_user.id)
+    available, _ = db.link_counts()
+    skipped = len(urls) - added
+    note = f" ({skipped} tasi avval saqlangan, o'tkazib yuborildi)" if skipped else ""
+    await update.message.reply_text(f"🔗 {added} ta link saqlandi{note}.\nOmborda: {available} ta link.")
+
+
+async def give_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    url = db.take_link(update.effective_user.id)
+    if url is None:
+        await update.message.reply_text("😔 Hozircha link qolmadi. Keyinroq urinib ko'ring.", reply_markup=main_menu())
+        return
+    await update.message.reply_text(f"🔗 Sizning linkingiz:\n{url}", reply_markup=main_menu())
+    if db.link_counts()[0] == 0:
+        for admin_id in ADMIN_IDS:
+            try:
+                await context.bot.send_message(admin_id, "⚠️ Linklar tugadi! Yangi linklarni botga yuboring.")
+            except TelegramError:
+                pass
+
+
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     touch(update)
     msg = update.message
@@ -443,6 +478,9 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return await balance_cmd(update, context)
     if text == BTN_WITHDRAW:
         return await start_withdraw(update, context)
+    if text == BTN_LINK:
+        reset(context)
+        return await give_link(update, context)
     if text == BTN_HELP:
         reset(context)
         return await help_cmd(update, context)
@@ -454,6 +492,12 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return await handle_wd_amount(update, context, text)
     if state == "wd_details":
         return await handle_wd_details(update, context, text)
+
+    # An admin sending links outside any flow adds them to the link stock.
+    if is_admin(update):
+        urls = extract_links(msg)
+        if urls:
+            return await save_links(update, context, urls)
 
     await msg.reply_text(f"Matn yuborish uchun avval «{BTN_SUBMIT}» tugmasini bosing.", reply_markup=main_menu())
 
@@ -564,7 +608,10 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/user USER_ID — foydalanuvchi balansi\n"
         "/addbalance USER_ID SUMMA — balansga qo'shish (ayirish uchun minus: -5)\n"
         "/block USER_ID, /unblock USER_ID\n"
-        "/broadcast MATN — hammaga xabar\n\n"
+        "/broadcast MATN — hammaga xabar\n"
+        "/links — linklar soni, /clearlinks — ishlatilmagan linklarni o'chirish\n\n"
+        "🔗 Linklar qo'shish: botga linklarni oddiy xabar qilib yuboring (bir xabarda bir nechta bo'lishi mumkin). "
+        "Har bir link faqat bitta foydalanuvchiga beriladi.\n"
         "Yuborma xabariga javob qilib summani yozsangiz — shu summa bilan tasdiqlanadi.",
         parse_mode=ParseMode.HTML,
     )
@@ -598,6 +645,17 @@ async def pending_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         msg = await update.message.reply_text(wd_admin_text(wd), parse_mode=ParseMode.HTML,
                                               reply_markup=wd_keyboard(wd["id"]), disable_web_page_preview=True)
         db.add_admin_msg("wd", wd["id"], msg.chat_id, msg.message_id)
+
+
+@admin_only
+async def links_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    available, given = db.link_counts()
+    await update.message.reply_text(f"🔗 Omborda: {available} ta\n✅ Berilgan: {given} ta")
+
+
+@admin_only
+async def clearlinks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(f"🗑 {db.clear_unused_links()} ta ishlatilmagan link o'chirildi.")
 
 
 @admin_only
@@ -701,7 +759,7 @@ def main() -> None:
         ("start", start), ("help", help_cmd), ("cancel", cancel_cmd), ("balance", balance_cmd),
         ("admin", admin_cmd), ("stats", stats_cmd), ("pending", pending_cmd), ("approve", approve_cmd),
         ("user", user_cmd), ("addbalance", addbalance_cmd), ("block", block_cmd), ("unblock", unblock_cmd),
-        ("broadcast", broadcast_cmd),
+        ("broadcast", broadcast_cmd), ("links", links_cmd), ("clearlinks", clearlinks_cmd),
     ]:
         app.add_handler(CommandHandler(name, handler, filters=private))
 
